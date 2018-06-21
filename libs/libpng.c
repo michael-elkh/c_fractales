@@ -153,9 +153,9 @@ static void Set_RGB(pixel_t *pixel, int value, bool smooth)
     {
         value = (int)log2(value + 1);
     }
-    pixel->red = (uint8_t)abs(255 * cos(value));
-    pixel->green = (uint8_t)abs(255 * (sin(value)));
-    pixel->blue = (uint8_t)abs(255 * (tan(value)));
+    pixel->red = (uint8_t)(255 * (tan(value)+1)/2);
+    pixel->green = (uint8_t)(255 * cos(value));
+    pixel->blue = (uint8_t)(255 * sin(value));
 }
 
 void Save_Matrix_To_PNG(Matrix *Image, char *Path, bool smooth)
