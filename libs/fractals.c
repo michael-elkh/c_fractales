@@ -109,10 +109,8 @@ void *Compute_Mandelbrot_Plane_Chunk(void *vargp)
                 temp = temp * temp + original;
             }
             result->data[i][j] = k;
-            //result->data[i][j] = (int)log2(1 + k);
         }
     }
-    //result->max = (int)log2(result->max);
 
     return NULL;
 }

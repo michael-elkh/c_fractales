@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "matrix.h"
 #include "secured_alloc.h"
 #include <tgmath.h>
@@ -146,14 +147,18 @@ static int pix(int value, int max)
     }
     return (int)(256.0 * ((double)(value) / (double)max));
 }
-static void Set_RGB(pixel_t *pixel, int value)
+static void Set_RGB(pixel_t *pixel, int value, bool smooth)
 {
-    pixel->red = (uint8_t)(255*(cos(value)));
-    pixel->green = (uint8_t)(255*(sin(value)));
-    pixel->blue = (uint8_t)(255*(tan(value)));
+    if (smooth)
+    {
+        value = (int)log2(value + 1);
+    }
+    pixel->red = (uint8_t)abs(255 * cos(value));
+    pixel->green = (uint8_t)abs(255 * (sin(value)));
+    pixel->blue = (uint8_t)abs(255 * (tan(value)));
 }
 
-void Save_Matrix_To_PNG(Matrix *Image, char *Path)
+void Save_Matrix_To_PNG(Matrix *Image, char *Path, bool smooth)
 {
     bitmap_t img;
 
@@ -166,14 +171,11 @@ void Save_Matrix_To_PNG(Matrix *Image, char *Path)
         for (int x = 0; x < img.width; x++)
         {
             pixel_t *pixel = pixel_at(&img, x, y);
-            Set_RGB(pixel, Image->data[y][x]);
-            //pixel->red = pix(Image->data[y][x], Image->max);
-            //pixel->green = 256 - pix(Image->data[y][x], Image->max);
-            //pixel->blue = pix(Image->data[y][x], Image->max);
+            Set_RGB(pixel, Image->data[y][x], smooth);
         }
     }
 
     save_png_to_file(&img, Path);
 
-    free(img.pixels);    
+    free(img.pixels);
 }
