@@ -3,7 +3,6 @@
 #include <time.h>
 #include "libs/matrix.h"
 #include "libs/fractals.h"
-#include "libs/libpng.h"
 
 int main()
 {

@@ -1,35 +1,19 @@
 //Source : https://www.lemoda.net/c/write-png/
+//Modified by : El Kharroubi Michaël
 #include <png.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <tgmath.h>
 #include "matrix.h"
 #include "secured_alloc.h"
-#include <tgmath.h>
-
-/* A coloured pixel. */
-
-typedef struct
-{
-    uint8_t red;
-    uint8_t green;
-    uint8_t blue;
-} pixel_t;
-
-/* A picture. */
-
-typedef struct
-{
-    pixel_t *pixels;
-    size_t width;
-    size_t height;
-} bitmap_t;
+#include "libpng.h"
 
 /* Given "bitmap", this returns the pixel of bitmap at the point 
    ("x", "y"). */
 
-static pixel_t *pixel_at(bitmap_t *bitmap, int x, int y)
+pixel_t *pixel_at(bitmap_t *bitmap, int x, int y)
 {
     return bitmap->pixels + bitmap->width * y + x;
 }
@@ -37,7 +21,7 @@ static pixel_t *pixel_at(bitmap_t *bitmap, int x, int y)
 /* Write "bitmap" to a PNG file specified by "path"; returns 0 on
    success, non-zero on error. */
 
-static int save_png_to_file(bitmap_t *bitmap, const char *path)
+int save_png_to_file(bitmap_t *bitmap, const char *path)
 {
     FILE *fp;
     png_structp png_ptr = NULL;
@@ -139,7 +123,7 @@ fopen_failed:
    to take, this returns an integer between 0 and 255 proportional to
    "value" divided by "max". */
 
-static int pix(int value, int max)
+int pix(int value, int max)
 {
     if (value < 0)
     {
@@ -147,7 +131,7 @@ static int pix(int value, int max)
     }
     return (int)(256.0 * ((double)(value) / (double)max));
 }
-static void Set_RGB(pixel_t *pixel, int value, bool smooth)
+void Set_RGB(pixel_t *pixel, int value, bool smooth)
 {
     if (smooth)
     {
@@ -156,26 +140,4 @@ static void Set_RGB(pixel_t *pixel, int value, bool smooth)
     pixel->red = (uint8_t)(255 * (tan(value)+1)/2);
     pixel->green = (uint8_t)(255 * cos(value));
     pixel->blue = (uint8_t)(255 * sin(value));
-}
-
-void Save_Matrix_To_PNG(Matrix *Image, char *Path, bool smooth)
-{
-    bitmap_t img;
-
-    img.height = Image->rows;
-    img.width = Image->columns;
-    img.pixels = salloc(img.width * img.height * sizeof(pixel_t));
-
-    for (int y = 0; y < img.height; y++)
-    {
-        for (int x = 0; x < img.width; x++)
-        {
-            pixel_t *pixel = pixel_at(&img, x, y);
-            Set_RGB(pixel, Image->data[y][x], smooth);
-        }
-    }
-
-    save_png_to_file(&img, Path);
-
-    free(img.pixels);
 }

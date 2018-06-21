@@ -8,6 +8,8 @@
 #include <assert.h>
 #include <string.h>
 #include <math.h>
+#include <stdbool.h>
+#include "libpng.h"
 #include "matrix.h"
 #include "secured_alloc.h"
 
@@ -228,4 +230,25 @@ Matrix *Fuse_Martices(Matrix **Matrices, int elements)
     free(Matrices);
 
     return res;
+}
+void Save_Matrix_To_PNG(Matrix *Image, char *Path, bool smooth)
+{
+    bitmap_t img;
+
+    img.height = Image->rows;
+    img.width = Image->columns;
+    img.pixels = salloc(img.width * img.height * sizeof(pixel_t));
+
+    for (int y = 0; y < img.height; y++)
+    {
+        for (int x = 0; x < img.width; x++)
+        {
+            pixel_t *pixel = pixel_at(&img, x, y);
+            Set_RGB(pixel, Image->data[y][x], smooth);
+        }
+    }
+
+    save_png_to_file(&img, Path);
+
+    free(img.pixels);
 }
