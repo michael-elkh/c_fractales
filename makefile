@@ -10,7 +10,7 @@ SUBDIRS = libs
 
 #Instructions
 fractals: main.o libs
-	$(CFLAGS) main.o libs/matrix.o libs/secured_alloc.o libs/fractals.o libs/libpng.o -lpthread -lpng -lm -o fractals
+	$(CFLAGS) main.o libs/matrix.o libs/secured_alloc.o libs/fractals.o -lpthread -lpng -lm -o fractals
 	
 main.o: main.c
 	$(CFLAGS) -c main.c -lm

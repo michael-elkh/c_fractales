@@ -6,18 +6,18 @@
 
 int main()
 {   
-    int start = time(NULL);
+    /*
     double complex constant = -0.7269 + 0.1889 * I;
     Matrix *res = Get_Julia(1000, 16384, constant);
-    Save_Matrix_To_PNG(res, "Julia.png", true);
+    Save_Matrix_To_PNG(res,  true, "Julia.png");
     Free_Matrix(&res);
-
+    */
     double complex center = -0.745428 - 0.113009 * I;
-    res = Get_Mandelbrot(1000, 16384, center, 42e-06);
-    Save_Matrix_To_PNG(res, "Mandelbrot.png", true);
+    Matrix *res = Get_Mandelbrot(15000, 100, center, 42e-06);
+    
+    Save_Matrix_To_PNG(res, true, "Mandelbrot.png");
+    
+    //Save_Matrix_To_PNG(res, "Mandelbrot.png", true);
     Free_Matrix(&res);
-    
-    printf("Temps de calcul : %ld\n", time(NULL) - start);
-    
     return 0;
 }

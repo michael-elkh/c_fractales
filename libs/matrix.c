@@ -9,10 +9,12 @@
 #include <string.h>
 #include <math.h>
 #include <stdbool.h>
-#include "libpng.h"
+#include <png.h>
+#include <stdint.h>
 #include "matrix.h"
 #include "secured_alloc.h"
 
+#include <time.h>
 //Constants
 #define BUFF_SIZE 50
 #define MAX_CHARS_BY_LINE 70 //PGM file must have less than 70 chars by lines.
@@ -197,24 +199,147 @@ Matrix Sub_Matrix(Matrix *Original, int y, int rows)
     //Matrix sub = {Original->data + y, rows, Original->columns, Original->max};
     return (Matrix){Original->data + y, rows, Original->columns, Original->max};
 }
-void Save_Matrix_To_PNG(Matrix *Image, char *Path, bool smooth)
+void Set_RGB(int *color, double value, bool smooth)
 {
-    bitmap_t img;
-
-    img.height = Image->rows;
-    img.width = Image->columns;
-    img.pixels = salloc(img.width * img.height * sizeof(pixel_t));
-
-    for (int y = 0; y < (int)img.height; y++)
+    if (!value)
     {
-        for (int x = 0; x < (int)img.width; x++)
+        color[0] = 153;
+        color[1] = 255;
+        color[2] = 204;
+    }
+    else
+    {
+        if (smooth)
         {
-            pixel_t *pixel = pixel_at(&img, x, y);
-            Set_RGB(pixel, Image->data[y][x], smooth);
+            value = log2(value);
         }
+        double r_ang, g_ang, b_ang;
+        r_ang = (2.75 * value + 1.0);
+        g_ang = (0.375 * value + 1.0);
+        b_ang = (3.25 * value + 1.0);
+
+        color[0] = (uint8_t)(256 * sin(1.25 * r_ang) * cos(0.75 * r_ang));
+        color[1] = (uint8_t)(256 * cos(g_ang));
+        color[2] = (uint8_t)(256 * sin(b_ang));
+    }
+}
+//Source : https://www.lemoda.net/c/write-png/
+//Modified by : El Kharroubi Michaël
+int Save_Matrix_To_PNG(Matrix *image, bool smooth, const char *path)
+{
+    FILE *fp;
+    png_structp png_ptr = NULL;
+    png_infop info_ptr = NULL;
+    size_t x, y;
+    png_byte **row_pointers = NULL;
+    /* "status" contains the return value of this function. At first
+       it is set to a value which means 'failure'. When the routine
+       has finished its work, it is set to a value which means
+       'success'. */
+    int status = -1;
+    /* The following number is set by trial and error only. I cannot
+       see where it it is documented in the libpng manual.
+    */
+    int pixel_size = 3;
+    int depth = 8;
+
+    fp = fopen(path, "wb");
+    if (!fp)
+    {
+        goto fopen_failed;
     }
 
-    save_png_to_file(&img, Path);
+    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (png_ptr == NULL)
+    {
+        goto png_create_write_struct_failed;
+    }
 
-    free(img.pixels);
+    info_ptr = png_create_info_struct(png_ptr);
+    if (info_ptr == NULL)
+    {
+        goto png_create_info_struct_failed;
+    }
+
+    /* Set up error handling. */
+
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        goto png_failure;
+    }
+
+    /* Set image attributes. */
+
+    png_set_IHDR(png_ptr,
+                 info_ptr,
+                 image->columns,
+                 image->rows,
+                 depth,
+                 PNG_COLOR_TYPE_RGB,
+                 PNG_INTERLACE_NONE,
+                 PNG_COMPRESSION_TYPE_DEFAULT,
+                 PNG_FILTER_TYPE_DEFAULT);
+
+    /* Initialize rows of PNG. */
+    int start = time(NULL);
+    double value, r_ang;
+    row_pointers = png_malloc(png_ptr, image->rows * sizeof(png_byte *));
+    for (y = 0; y < image->rows; y++)
+    {
+        png_byte *row = png_malloc(png_ptr, sizeof(uint8_t) * image->columns * pixel_size);
+        row_pointers[y] = row;
+        for (x = 0; x < image->columns; x++)
+        {
+            value = image->data[y][x];
+            if (!value)
+            {
+                //Red
+                *row++ = 153;
+                //Green
+                *row++ = 255;
+                //Blue
+                *row++ = 204;
+            }
+            else
+            {
+                if (smooth)
+                {
+                    value = log2(value);
+                }
+                r_ang = 2.75 * value + 1.0;
+                //Red
+                *row++ = (uint8_t)(256 * sin(1.25 * r_ang) * cos(0.75 * r_ang));
+                //Green
+                *row++ = (uint8_t)(256 * cos((0.375 * value + 1.0)));
+                //Blue
+                *row++ = (uint8_t)(256 * sin((3.25 * value + 1.0)));;
+            }
+        }
+    }
+    printf("Temps : %ld\n", time(NULL)-start);
+
+    /* Write the image data to "fp". */
+
+    png_init_io(png_ptr, fp);
+    png_set_rows(png_ptr, info_ptr, row_pointers);
+    png_write_png(png_ptr, info_ptr, PNG_TRANSFORM_IDENTITY, NULL);
+
+    /* The routine has successfully written the file, so we set
+       "status" to a value which indicates success. */
+
+    status = 0;
+
+    for (y = 0; y < image->rows; y++)
+    {
+        png_free(png_ptr, row_pointers[y]);
+    }
+    png_free(png_ptr, row_pointers);
+
+    png_failure:
+    png_create_info_struct_failed:
+    png_destroy_write_struct(&png_ptr, &info_ptr);
+    png_create_write_struct_failed:
+    fclose(fp);
+    fopen_failed:
+    return status;
 }
