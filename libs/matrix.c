@@ -199,29 +199,46 @@ Matrix Sub_Matrix(Matrix *Original, int y, int rows)
     //Matrix sub = {Original->data + y, rows, Original->columns, Original->max};
     return (Matrix){Original->data + y, rows, Original->columns, Original->max};
 }
-void Set_RGB(int *color, double value, bool smooth)
+void Matrix_To_png_byte(Matrix *image, png_byte ***png_data, png_structp *png_ptr, bool smooth)
 {
-    if (!value)
+    /* Initialize rows of PNG. */
+    int start = time(NULL);
+    int pixel_size = 3;
+    double value, r_ang;
+    *png_data = png_malloc(*png_ptr, image->rows * sizeof(png_byte *));
+    for (int y = 0; y < image->rows; y++)
     {
-        color[0] = 153;
-        color[1] = 255;
-        color[2] = 204;
-    }
-    else
-    {
-        if (smooth)
+        png_byte *row = png_malloc(*png_ptr, sizeof(uint8_t) * image->columns * pixel_size);
+        (*png_data)[y] = row;
+        for (int x = 0; x < image->columns; x++)
         {
-            value = log2(value);
+            value = image->data[y][x];
+            if (!value)
+            {
+                //Red
+                *row++ = 153;
+                //Green
+                *row++ = 255;
+                //Blue
+                *row++ = 204;
+            }
+            else
+            {
+                if (smooth)
+                {
+                    value = log2(value);
+                }
+                r_ang = 2.75 * value + 1.0;
+                //Red
+                *row++ = (uint8_t)(256 * sin(1.25 * r_ang) * cos(0.75 * r_ang));
+                //Green
+                *row++ = (uint8_t)(256 * cos((0.375 * value + 1.0)));
+                //Blue
+                *row++ = (uint8_t)(256 * sin((3.25 * value + 1.0)));;
+            }
         }
-        double r_ang, g_ang, b_ang;
-        r_ang = (2.75 * value + 1.0);
-        g_ang = (0.375 * value + 1.0);
-        b_ang = (3.25 * value + 1.0);
-
-        color[0] = (uint8_t)(256 * sin(1.25 * r_ang) * cos(0.75 * r_ang));
-        color[1] = (uint8_t)(256 * cos(g_ang));
-        color[2] = (uint8_t)(256 * sin(b_ang));
     }
+    printf("Temps : %ld\n", time(NULL)-start);
 }
 //Source : https://www.lemoda.net/c/write-png/
 //Modified by : El Kharroubi Michaël
@@ -240,7 +257,6 @@ int Save_Matrix_To_PNG(Matrix *image, bool smooth, const char *path)
     /* The following number is set by trial and error only. I cannot
        see where it it is documented in the libpng manual.
     */
-    int pixel_size = 3;
     int depth = 8;
 
     fp = fopen(path, "wb");
@@ -280,44 +296,8 @@ int Save_Matrix_To_PNG(Matrix *image, bool smooth, const char *path)
                  PNG_COMPRESSION_TYPE_DEFAULT,
                  PNG_FILTER_TYPE_DEFAULT);
 
-    /* Initialize rows of PNG. */
-    int start = time(NULL);
-    double value, r_ang;
-    row_pointers = png_malloc(png_ptr, image->rows * sizeof(png_byte *));
-    for (y = 0; y < image->rows; y++)
-    {
-        png_byte *row = png_malloc(png_ptr, sizeof(uint8_t) * image->columns * pixel_size);
-        row_pointers[y] = row;
-        for (x = 0; x < image->columns; x++)
-        {
-            value = image->data[y][x];
-            if (!value)
-            {
-                //Red
-                *row++ = 153;
-                //Green
-                *row++ = 255;
-                //Blue
-                *row++ = 204;
-            }
-            else
-            {
-                if (smooth)
-                {
-                    value = log2(value);
-                }
-                r_ang = 2.75 * value + 1.0;
-                //Red
-                *row++ = (uint8_t)(256 * sin(1.25 * r_ang) * cos(0.75 * r_ang));
-                //Green
-                *row++ = (uint8_t)(256 * cos((0.375 * value + 1.0)));
-                //Blue
-                *row++ = (uint8_t)(256 * sin((3.25 * value + 1.0)));;
-            }
-        }
-    }
-    printf("Temps : %ld\n", time(NULL)-start);
-
+    //Can be optimized, with multithreading.
+    Matrix_To_png_byte(image, &row_pointers, &png_ptr, smooth);
     /* Write the image data to "fp". */
 
     png_init_io(png_ptr, fp);

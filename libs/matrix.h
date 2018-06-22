@@ -19,7 +19,6 @@ Matrix *New_Matrix(int rows, int columns);
 void Free_Matrix(Matrix **matrix);
 Matrix *Read_PGM(char *Path);
 void Write_PGM(Matrix *Image, char *Path);
-Matrix *Fuse_Martices(Matrix **Matrices, int elements);
 int Save_Matrix_To_PNG(Matrix *image, bool smooth, const char *path);
 Matrix Sub_Matrix(Matrix *Original, int y, int rows);
 
