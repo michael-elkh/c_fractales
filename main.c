@@ -7,14 +7,29 @@
 int main()
 {
     int start = time(NULL);
-    //double complex constant = -0.7269 + 0.1889 * I;
+
     double complex center = -0.745428 - 0.113009 * I;
-    center = -1.25066 + 0.02012*I;
-    //Matrix *res = Get_Julia(10000, 2048, constant);
-    Matrix *res = Get_Mandelbrot(2000, 4096, center, 0.00022);
-    printf("Temps de calcul : %ld\n", time(NULL) - start);
-    Save_Matrix_To_PNG(res, "Mandelbrot.png", false);
-    //Write_PGM(res, "Mandelbrot.pgm");
+    double complex constant = -0.7269 + 0.1889 * I;
+
+    Matrix *res = Get_Julia(2000, 2048, constant);
+    Save_Matrix_To_PNG(res, "Julia.png", false);
     Free_Matrix(&res);
+
+    res = Get_Mandelbrot(2000, 4096, center, 42e-06);
+    Save_Matrix_To_PNG(res, "Mandelbrot.png", false);
+    Free_Matrix(&res);
+
+    printf("Temps de calcul : %ld\n", time(NULL) - start);
     return 0;
 }
+/*
+    Matrix *res;
+    char name[26];
+    for(int i = 10; i<210 ; i++)
+    {
+        sprintf(name, "Result/Mandelbrot_%d.png", i);
+        res = Get_Mandelbrot(500, 2048, center, 2/(double)i);
+        Save_Matrix_To_PNG(res, name, false);
+        Free_Matrix(&res);
+    }
+*/

@@ -239,9 +239,9 @@ void Save_Matrix_To_PNG(Matrix *Image, char *Path, bool smooth)
     img.width = Image->columns;
     img.pixels = salloc(img.width * img.height * sizeof(pixel_t));
 
-    for (int y = 0; y < img.height; y++)
+    for (int y = 0; y < (int)img.height; y++)
     {
-        for (int x = 0; x < img.width; x++)
+        for (int x = 0; x < (int)img.width; x++)
         {
             pixel_t *pixel = pixel_at(&img, x, y);
             Set_RGB(pixel, Image->data[y][x], smooth);

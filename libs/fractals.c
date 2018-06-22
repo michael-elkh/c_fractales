@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <tgmath.h>
@@ -52,31 +53,33 @@ Matrix *Get_Julia(int size, int iterations, double complex constant)
     double threshold = (1.0 + sqrt(1 + 4 * cabs(constant))) / 2;
     //Submatrix size for threads
     double chunk_size = 2 * threshold / THREADS;
+    double complex origin[THREADS], limit[THREADS];
     //Parameters for threads
-    void **vars;
+    void ***vars = salloc(sizeof(void **) * THREADS);
     pthread_t threads_ids[THREADS];
 
     for (int i = 0; i < THREADS; i++)
     {
-        vars = salloc(sizeof(void *) * 4);
+        vars[i] = salloc(sizeof(void *) * 4);
         results[i] = New_Matrix(size, size / THREADS);
         results[i]->max = iterations;
-        vars[0] = (void *)(results[i]);
+        vars[i][0] = (void *)results[i];
 
-        double complex origin = -1 * threshold + (i * chunk_size) - threshold * I;
-        double complex limit = threshold - ((THREADS - (i + 1)) * chunk_size) + threshold * I;
-        vars[1] = (void *)(&origin);
-        vars[2] = (void *)(&limit);
-        vars[3] = (void *)(&constant);
+        origin[i] = -1 * threshold + (i * chunk_size) - threshold * I;
+        limit[i] = threshold - ((THREADS - (i + 1)) * chunk_size) + threshold * I;
+        vars[i][1] = (void *)&(origin[i]);
+        vars[i][2] = (void *)&(limit[i]);
+        vars[i][3] = (void *)(&constant);
 
         //Multithreading
-        pthread_create(&(threads_ids[i]), NULL, Compute_Julia_Plane_Chunk, (void *)vars);
+        pthread_create(&(threads_ids[i]), NULL, Compute_Julia_Plane_Chunk, (void *)vars[i]);
     }
     for (int i = 0; i < THREADS; i++)
     {
         pthread_join(threads_ids[i], NULL);
     }
 
+    free(vars);
     return Fuse_Martices(results, THREADS);
 }
 void *Compute_Mandelbrot_Plane_Chunk(void *vargp)
@@ -111,7 +114,7 @@ void *Compute_Mandelbrot_Plane_Chunk(void *vargp)
             result->data[i][j] = k;
         }
     }
-
+    pthread_exit(NULL);
     return NULL;
 }
 Matrix *Get_Mandelbrot(int size, int iterations, double complex center, double radius)
@@ -119,29 +122,29 @@ Matrix *Get_Mandelbrot(int size, int iterations, double complex center, double r
     Matrix **results = salloc(sizeof(Matrix *) * THREADS);
     //Submatrix size for threads
     double chunk_size = 2 * radius / THREADS;
+    double complex origin[THREADS], limit[THREADS];
     //Parameters for threads
-    void **vars;
+    void ***vars = salloc(sizeof(void **) * THREADS);
     pthread_t threads_ids[THREADS];
 
     for (int i = 0; i < THREADS; i++)
     {
-        vars = salloc(sizeof(void *) * 4);
+        vars[i] = salloc(sizeof(void *) * 3);
         results[i] = New_Matrix(size / THREADS, size);
         results[i]->max = iterations;
-        vars[0] = (void *)(results[i]);
+        vars[i][0] = (void *)results[i];
 
-        double complex origin = creal(center) - radius + ((cimag(center) - radius) + i * chunk_size) * I;
-        double complex limit = creal(center) + radius + ((cimag(center) + radius) - (((THREADS - 1) - i) * chunk_size)) * I;
-        vars[1] = (void *)(&origin);
-        vars[2] = (void *)(&limit);
+        origin[i] = creal(center) - radius + (cimag(center) - radius + i * chunk_size) * I;
+        limit[i] = creal(center) + radius + (cimag(center) + radius - (THREADS - (i + 1)) * chunk_size) * I;
+        vars[i][1] = (void *)&(origin[i]);
+        vars[i][2] = (void *)&(limit[i]);
 
-        //Multithreading
-        pthread_create(&(threads_ids[i]), NULL, Compute_Mandelbrot_Plane_Chunk, (void *)vars);
+        pthread_create(&(threads_ids[i]), NULL, Compute_Mandelbrot_Plane_Chunk, (void *)(vars[i]));
     }
     for (int i = 0; i < THREADS; i++)
     {
         pthread_join(threads_ids[i], NULL);
     }
-
+    free(vars);
     return Fuse_Martices(results, THREADS);
 }
