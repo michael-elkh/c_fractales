@@ -1,11 +1,11 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <tgmath.h>
 #include <time.h>
+#include <unistd.h>
 #include "matrix.h"
 #include "secured_alloc.h"
-#include <unistd.h>
+
 #define THREADS sysconf(_SC_NPROCESSORS_ONLN)
 
 //https://www.geeksforgeeks.org/multithreading-c-2/
@@ -25,34 +25,37 @@ void *Compute_Julia_Plane_Chunk(void *vargp)
     double complex temp;
     double real_step = fabs(creal(origin) - creal(limit)) / result->columns;
     double imag_step = fabs(cimag(origin) - cimag(limit)) / result->rows;
-    int k = 0;
+    int k;
 
     for (int i = 0; i < result->rows; i++)
     {
         for (int j = 0; j < result->columns; j++)
         {
+            k = 0;
             temp = origin + j * real_step + i * imag_step * I;
             //Stop computation for point, if the element is eliminated
             while (cabs(temp) <= threshold && k < result->max)
             {
-                result->data[i][j]++;
                 temp = temp * temp + constant;
                 k++;
             }
-            result->data[i][j] = (int)log2(1 + result->data[i][j]);
-            k = 0;
+            result->data[i][j] = k;
         }
     }
-    result->max = (int)log2(result->max);
 
     return NULL;
 }
 Matrix *Get_Julia(int size, int iterations, double complex constant)
 {
-    Matrix **results = salloc(sizeof(Matrix *) * THREADS);
+    Matrix *result = New_Matrix(size, size);
+    Matrix *subs = salloc(sizeof(Matrix) * THREADS);
+    result->max = iterations;
+    int sub_size = size / THREADS;
+
     double threshold = (1.0 + sqrt(1 + 4 * cabs(constant))) / 2;
+
     //Submatrix size for threads
-    double chunk_size = 2 * threshold / THREADS;
+    double chunk_size = 2.0 * threshold / (double)THREADS;
     double complex origin[THREADS], limit[THREADS];
     //Parameters for threads
     void ***vars = salloc(sizeof(void **) * THREADS);
@@ -61,12 +64,11 @@ Matrix *Get_Julia(int size, int iterations, double complex constant)
     for (int i = 0; i < THREADS; i++)
     {
         vars[i] = salloc(sizeof(void *) * 4);
-        results[i] = New_Matrix(size, size / THREADS);
-        results[i]->max = iterations;
-        vars[i][0] = (void *)results[i];
+        subs[i] = Sub_Matrix(result, i * sub_size, sub_size);
+        vars[i][0] = (void *)&subs[i];
 
-        origin[i] = -1 * threshold + (i * chunk_size) - threshold * I;
-        limit[i] = threshold - ((THREADS - (i + 1)) * chunk_size) + threshold * I;
+        origin[i] = -1 * threshold + (-1 * threshold + i * chunk_size) * I;
+        limit[i] = threshold + (threshold - (THREADS - (i + 1)) * chunk_size) * I;
         vars[i][1] = (void *)&(origin[i]);
         vars[i][2] = (void *)&(limit[i]);
         vars[i][3] = (void *)(&constant);
@@ -79,8 +81,9 @@ Matrix *Get_Julia(int size, int iterations, double complex constant)
         pthread_join(threads_ids[i], NULL);
     }
 
+    free(subs);
     free(vars);
-    return Fuse_Martices(results, THREADS);
+    return result;
 }
 void *Compute_Mandelbrot_Plane_Chunk(void *vargp)
 {
@@ -114,13 +117,16 @@ void *Compute_Mandelbrot_Plane_Chunk(void *vargp)
             result->data[i][j] = k;
         }
     }
-    pthread_exit(NULL);
     return NULL;
 }
 Matrix *Get_Mandelbrot(int size, int iterations, double complex center, double radius)
 {
-    Matrix **results = salloc(sizeof(Matrix *) * THREADS);
-    //Submatrix size for threads
+    Matrix *result = New_Matrix(size, size);
+    Matrix *subs = salloc(sizeof(Matrix) * THREADS);
+    result->max = iterations;
+    int sub_size = size / THREADS;
+
+    //Subplane size for threads
     double chunk_size = 2 * radius / THREADS;
     double complex origin[THREADS], limit[THREADS];
     //Parameters for threads
@@ -130,9 +136,8 @@ Matrix *Get_Mandelbrot(int size, int iterations, double complex center, double r
     for (int i = 0; i < THREADS; i++)
     {
         vars[i] = salloc(sizeof(void *) * 3);
-        results[i] = New_Matrix(size / THREADS, size);
-        results[i]->max = iterations;
-        vars[i][0] = (void *)results[i];
+        subs[i] = Sub_Matrix(result, i * sub_size, sub_size);
+        vars[i][0] = (void *)&subs[i];
 
         origin[i] = creal(center) - radius + (cimag(center) - radius + i * chunk_size) * I;
         limit[i] = creal(center) + radius + (cimag(center) + radius - (THREADS - (i + 1)) * chunk_size) * I;
@@ -145,6 +150,8 @@ Matrix *Get_Mandelbrot(int size, int iterations, double complex center, double r
     {
         pthread_join(threads_ids[i], NULL);
     }
+
+    free(subs);
     free(vars);
-    return Fuse_Martices(results, THREADS);
+    return result;
 }

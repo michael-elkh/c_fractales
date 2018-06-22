@@ -190,6 +190,13 @@ void Write_PGM(Matrix *Image, char *Path)
 
     fclose(dest);
 }
+//Submatrix aren't suposed to be freed.
+Matrix Sub_Matrix(Matrix *Original, int y, int rows)
+{
+    assert(y + rows <= Original->rows && "Submatrix out of original matrix.");
+    //Matrix sub = {Original->data + y, rows, Original->columns, Original->max};
+    return (Matrix){Original->data + y, rows, Original->columns, Original->max};
+}
 Matrix *Fuse_Martices(Matrix **Matrices, int elements)
 {
     int new_rows, new_columns, rows, columns;
@@ -208,20 +215,20 @@ Matrix *Fuse_Martices(Matrix **Matrices, int elements)
 
     Matrix *res = New_Matrix(new_rows, new_columns);
     res->max = Matrices[0]->max;
-    
+
     for (int k = 0; k < elements; k++)
     {
         for (int i = 0; i < rows; i++)
         {
             for (int j = 0; j < columns; j++)
             {
-                if(rows < columns)
+                if (rows < columns)
                 {
-                    res->data[i+k*rows][j] = Matrices[k]->data[i][j];
+                    res->data[i + k * rows][j] = Matrices[k]->data[i][j];
                 }
                 else
                 {
-                    res->data[i][j+k*columns] = Matrices[k]->data[i][j];
+                    res->data[i][j + k * columns] = Matrices[k]->data[i][j];
                 }
             }
         }
