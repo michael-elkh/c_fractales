@@ -197,47 +197,6 @@ Matrix Sub_Matrix(Matrix *Original, int y, int rows)
     //Matrix sub = {Original->data + y, rows, Original->columns, Original->max};
     return (Matrix){Original->data + y, rows, Original->columns, Original->max};
 }
-Matrix *Fuse_Martices(Matrix **Matrices, int elements)
-{
-    int new_rows, new_columns, rows, columns;
-    rows = Matrices[0]->rows;
-    columns = Matrices[0]->columns;
-    if (rows < columns)
-    {
-        new_rows = rows * elements;
-        new_columns = columns;
-    }
-    else
-    {
-        new_rows = rows;
-        new_columns = columns * elements;
-    }
-
-    Matrix *res = New_Matrix(new_rows, new_columns);
-    res->max = Matrices[0]->max;
-
-    for (int k = 0; k < elements; k++)
-    {
-        for (int i = 0; i < rows; i++)
-        {
-            for (int j = 0; j < columns; j++)
-            {
-                if (rows < columns)
-                {
-                    res->data[i + k * rows][j] = Matrices[k]->data[i][j];
-                }
-                else
-                {
-                    res->data[i][j + k * columns] = Matrices[k]->data[i][j];
-                }
-            }
-        }
-        Free_Matrix(&(Matrices[k]));
-    }
-    free(Matrices);
-
-    return res;
-}
 void Save_Matrix_To_PNG(Matrix *Image, char *Path, bool smooth)
 {
     bitmap_t img;

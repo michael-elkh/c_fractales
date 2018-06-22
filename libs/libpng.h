@@ -24,5 +24,5 @@ typedef struct
 int save_png_to_file(bitmap_t *bitmap, const char *path);
 pixel_t *pixel_at(bitmap_t *bitmap, int x, int y);
 int pix(int value, int max);
-void Set_RGB(pixel_t *pixel, int value, bool smooth);
+void Set_RGB(pixel_t *pixel, double value, bool smooth);
 #endif

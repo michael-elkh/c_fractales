@@ -48,7 +48,7 @@ void *Compute_Julia_Plane_Chunk(void *vargp)
 Matrix *Get_Julia(int size, int iterations, double complex constant)
 {
     Matrix *result = New_Matrix(size, size);
-    Matrix *subs = salloc(sizeof(Matrix) * THREADS);
+    Matrix subs[THREADS];
     result->max = iterations;
     int sub_size = size / THREADS;
 
@@ -81,7 +81,6 @@ Matrix *Get_Julia(int size, int iterations, double complex constant)
         pthread_join(threads_ids[i], NULL);
     }
 
-    free(subs);
     free(vars);
     return result;
 }
@@ -122,7 +121,7 @@ void *Compute_Mandelbrot_Plane_Chunk(void *vargp)
 Matrix *Get_Mandelbrot(int size, int iterations, double complex center, double radius)
 {
     Matrix *result = New_Matrix(size, size);
-    Matrix *subs = salloc(sizeof(Matrix) * THREADS);
+    Matrix subs[THREADS];
     result->max = iterations;
     int sub_size = size / THREADS;
 
@@ -151,7 +150,6 @@ Matrix *Get_Mandelbrot(int size, int iterations, double complex center, double r
         pthread_join(threads_ids[i], NULL);
     }
 
-    free(subs);
     free(vars);
     return result;
 }

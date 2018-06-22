@@ -131,13 +131,27 @@ int pix(int value, int max)
     }
     return (int)(256.0 * ((double)(value) / (double)max));
 }
-void Set_RGB(pixel_t *pixel, int value, bool smooth)
+void Set_RGB(pixel_t *pixel, double value, bool smooth)
 {
-    if (smooth)
+    if (!value)
     {
-        value = (int)log2(value + 1);
+        pixel->red = 153;
+        pixel->green = 255;
+        pixel->blue = 204;
     }
-    pixel->red = (uint8_t)(255 * (tan(value)+1)/2);
-    pixel->green = (uint8_t)(255 * cos(value));
-    pixel->blue = (uint8_t)(255 * sin(value));
+    else
+    {
+        if (smooth)
+        {
+            value = log2(value);
+        }
+        double r_ang, g_ang, b_ang;
+        r_ang = 2.75 * value + 1.0;
+        g_ang = 0.375 * value + 1.0;
+        b_ang = 3.25 * value + 1.0;
+
+        pixel->red = (uint8_t)(256 * sin(1.25 * r_ang) * cos(0.75 * r_ang));
+        pixel->green = (uint8_t)(256 * cos(g_ang));
+        pixel->blue = (uint8_t)(256 * sin(b_ang));
+    }
 }
