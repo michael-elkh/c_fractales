@@ -1,0 +1,5 @@
+Julia [constante]:
+- -0.7269 + 0.1889 * I
+Mandelbrot [centre] ; [largeur] :
+- -1.82273301565 + 0*I ; 9e-9 
+- -0.745428 - 0.113009 * I ; 7e-5

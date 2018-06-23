@@ -6,7 +6,9 @@
 #include "matrix.h"
 #include "secured_alloc.h"
 
+#ifndef THREADS
 #define THREADS sysconf(_SC_NPROCESSORS_ONLN)
+#endif
 
 //https://www.geeksforgeeks.org/multithreading-c-2/
 void *Compute_Julia_Plane_Chunk(void *vargp)
@@ -58,30 +60,29 @@ Matrix *Get_Julia(int size, int iterations, double complex constant)
     double chunk_size = 2.0 * threshold / (double)THREADS;
     double complex origin[THREADS], limit[THREADS];
     //Parameters for threads
-    void ***vars = salloc(sizeof(void **) * THREADS);
+    void **vars[THREADS];
     pthread_t threads_ids[THREADS];
 
     for (int i = 0; i < THREADS; i++)
     {
         vars[i] = salloc(sizeof(void *) * 4);
-        subs[i] = Sub_Matrix(result, i * sub_size, sub_size);
-        vars[i][0] = (void *)&subs[i];
+        subs[i] = Sub_Matrix(result, i * sub_size, sub_size + (i == THREADS - 1 ? size % THREADS : 0));
+        vars[i][0] = (void *)(subs + i);
 
         origin[i] = -1 * threshold + (-1 * threshold + i * chunk_size) * I;
         limit[i] = threshold + (threshold - (THREADS - (i + 1)) * chunk_size) * I;
-        vars[i][1] = (void *)&(origin[i]);
-        vars[i][2] = (void *)&(limit[i]);
-        vars[i][3] = (void *)(&constant);
+        vars[i][1] = (void *)(origin + i);
+        vars[i][2] = (void *)(limit + i);
+        vars[i][3] = (void *)&constant;
 
         //Multithreading
-        pthread_create(&(threads_ids[i]), NULL, Compute_Julia_Plane_Chunk, (void *)vars[i]);
+        pthread_create(threads_ids + i, NULL, Compute_Julia_Plane_Chunk, (void *)vars[i]);
     }
     for (int i = 0; i < THREADS; i++)
     {
         pthread_join(threads_ids[i], NULL);
     }
 
-    free(vars);
     return result;
 }
 void *Compute_Mandelbrot_Plane_Chunk(void *vargp)
@@ -129,27 +130,27 @@ Matrix *Get_Mandelbrot(int size, int iterations, double complex center, double r
     double chunk_size = 2 * radius / THREADS;
     double complex origin[THREADS], limit[THREADS];
     //Parameters for threads
-    void ***vars = salloc(sizeof(void **) * THREADS);
+    void **vars[THREADS];
     pthread_t threads_ids[THREADS];
 
     for (int i = 0; i < THREADS; i++)
     {
         vars[i] = salloc(sizeof(void *) * 3);
-        subs[i] = Sub_Matrix(result, i * sub_size, sub_size);
-        vars[i][0] = (void *)&subs[i];
+        //If the size can't be divided perfectly for each threads, for the last thread it add the rest.
+        subs[i] = Sub_Matrix(result, i * sub_size, sub_size + (i == THREADS - 1 ? size % THREADS : 0));
+        vars[i][0] = (void *)(subs+i);
 
         origin[i] = creal(center) - radius + (cimag(center) - radius + i * chunk_size) * I;
         limit[i] = creal(center) + radius + (cimag(center) + radius - (THREADS - (i + 1)) * chunk_size) * I;
-        vars[i][1] = (void *)&(origin[i]);
-        vars[i][2] = (void *)&(limit[i]);
+        vars[i][1] = (void *)(origin + i);
+        vars[i][2] = (void *)(limit + i);
 
-        pthread_create(&(threads_ids[i]), NULL, Compute_Mandelbrot_Plane_Chunk, (void *)(vars[i]));
+        pthread_create(threads_ids + i, NULL, Compute_Mandelbrot_Plane_Chunk, (void *)(vars[i]));
     }
     for (int i = 0; i < THREADS; i++)
     {
         pthread_join(threads_ids[i], NULL);
     }
 
-    free(vars);
     return result;
 }

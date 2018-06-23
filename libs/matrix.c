@@ -11,6 +11,8 @@
 #include <stdbool.h>
 #include <png.h>
 #include <stdint.h>
+#include <unistd.h>
+#include <pthread.h>
 #include "matrix.h"
 #include "secured_alloc.h"
 
@@ -20,6 +22,11 @@
 #define MAX_CHARS_BY_LINE 70 //PGM file must have less than 70 chars by lines.
 #define MAX_VALUE_FOR_PGM 65536
 #define IS_NUMBER(CHAR) (CHAR > 47 && CHAR < 58)
+#define PIXEL_SIZE 3
+
+#ifndef THREADS
+#define THREADS sysconf(_SC_NPROCESSORS_ONLN)
+#endif
 
 //External functions
 /*
@@ -199,17 +206,25 @@ Matrix Sub_Matrix(Matrix *Original, int y, int rows)
     //Matrix sub = {Original->data + y, rows, Original->columns, Original->max};
     return (Matrix){Original->data + y, rows, Original->columns, Original->max};
 }
-void Matrix_To_png_byte(Matrix *image, png_byte ***png_data, png_structp *png_ptr, bool smooth)
+void *Sub_Matrix_To_png_byte(void *vargrp)
 {
-    /* Initialize rows of PNG. */
-    int start = time(NULL);
-    int pixel_size = 3;
-    double value, r_ang;
-    *png_data = png_malloc(*png_ptr, image->rows * sizeof(png_byte *));
-    for (int y = 0; y < image->rows; y++)
+    void **vars = (void **)vargrp;
+    Matrix *image = (Matrix *)vars[0];
+    png_byte **png_data = *((png_byte ***)vars[1]);
+    png_structp png_str = *((png_structp *)vars[2]);
+    int origin = *((int *)vars[3]);
+    int limit = *((int *)vars[4]);
+    bool smooth = *((bool *)vars[5]);
+    //Free parameters
+    free(vars);
+
+    double max, value, r_ang;
+    max = image->max;
+
+    for (int y = origin; y < limit; y++)
     {
-        png_byte *row = png_malloc(*png_ptr, sizeof(uint8_t) * image->columns * pixel_size);
-        (*png_data)[y] = row;
+        png_byte *row = png_malloc(png_str, sizeof(uint8_t) * image->columns * PIXEL_SIZE);
+        png_data[y] = row;
         for (int x = 0; x < image->columns; x++)
         {
             value = image->data[y][x];
@@ -221,6 +236,15 @@ void Matrix_To_png_byte(Matrix *image, png_byte ***png_data, png_structp *png_pt
                 *row++ = 255;
                 //Blue
                 *row++ = 204;
+            }
+            else if (value == max)
+            {
+                //Red
+                *row++ = 0;
+                //Green
+                *row++ = 255;
+                //Blue
+                *row++ = 255;
             }
             else
             {
@@ -234,11 +258,12 @@ void Matrix_To_png_byte(Matrix *image, png_byte ***png_data, png_structp *png_pt
                 //Green
                 *row++ = (uint8_t)(256 * cos((0.375 * value + 1.0)));
                 //Blue
-                *row++ = (uint8_t)(256 * sin((3.25 * value + 1.0)));;
+                *row++ = (uint8_t)(256 * sin((3.25 * value + 1.0)));
             }
         }
     }
-    printf("Temps : %ld\n", time(NULL)-start);
+
+    return NULL;
 }
 //Source : https://www.lemoda.net/c/write-png/
 //Modified by : El Kharroubi Michaël
@@ -247,8 +272,9 @@ int Save_Matrix_To_PNG(Matrix *image, bool smooth, const char *path)
     FILE *fp;
     png_structp png_ptr = NULL;
     png_infop info_ptr = NULL;
-    size_t x, y;
     png_byte **row_pointers = NULL;
+    int step = image->rows / THREADS;
+    int origins[THREADS], limits[THREADS];
     /* "status" contains the return value of this function. At first
        it is set to a value which means 'failure'. When the routine
        has finished its work, it is set to a value which means
@@ -262,26 +288,26 @@ int Save_Matrix_To_PNG(Matrix *image, bool smooth, const char *path)
     fp = fopen(path, "wb");
     if (!fp)
     {
-        goto fopen_failed;
+        exit(EXIT_FAILURE);
     }
 
     png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (png_ptr == NULL)
     {
-        goto png_create_write_struct_failed;
+        exit(EXIT_FAILURE);
     }
 
     info_ptr = png_create_info_struct(png_ptr);
     if (info_ptr == NULL)
     {
-        goto png_create_info_struct_failed;
+        exit(EXIT_FAILURE);
     }
 
     /* Set up error handling. */
 
     if (setjmp(png_jmpbuf(png_ptr)))
     {
-        goto png_failure;
+        exit(EXIT_FAILURE);
     }
 
     /* Set image attributes. */
@@ -296,8 +322,28 @@ int Save_Matrix_To_PNG(Matrix *image, bool smooth, const char *path)
                  PNG_COMPRESSION_TYPE_DEFAULT,
                  PNG_FILTER_TYPE_DEFAULT);
 
-    //Can be optimized, with multithreading.
-    Matrix_To_png_byte(image, &row_pointers, &png_ptr, smooth);
+    /* Initialize rows of PNG. */
+    row_pointers = png_malloc(png_ptr, image->rows * sizeof(png_byte *));
+    pthread_t threads_ids[THREADS];
+    void **vars[THREADS];
+    for (int i = 0; i < THREADS; i++)
+    {
+        origins[i] = i * step;
+        limits[i] = (i + 1) * step + (i == THREADS - 1 ? image->rows : 0) % THREADS;
+        //6 = number of arguments
+        vars[i] = salloc(sizeof(void *) * 6);
+        vars[i][0] = image;
+        vars[i][1] = &row_pointers;
+        vars[i][2] = &png_ptr;
+        vars[i][3] = origins + i;
+        vars[i][4] = limits + i;
+        vars[i][5] = &smooth;
+        pthread_create(threads_ids + i, NULL, Sub_Matrix_To_png_byte, (void *)(vars[i]));
+    }
+    for (int i = 0; i < THREADS; i++)
+    {
+        pthread_join(threads_ids[i], NULL);
+    }
     /* Write the image data to "fp". */
 
     png_init_io(png_ptr, fp);
@@ -309,17 +355,12 @@ int Save_Matrix_To_PNG(Matrix *image, bool smooth, const char *path)
 
     status = 0;
 
-    for (y = 0; y < image->rows; y++)
+    for (int y = 0; y < image->rows; y++)
     {
         png_free(png_ptr, row_pointers[y]);
     }
     png_free(png_ptr, row_pointers);
-
-    png_failure:
-    png_create_info_struct_failed:
     png_destroy_write_struct(&png_ptr, &info_ptr);
-    png_create_write_struct_failed:
     fclose(fp);
-    fopen_failed:
     return status;
 }

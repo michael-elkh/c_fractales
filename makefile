@@ -1,7 +1,7 @@
 #Debugger
-#CFLAGS := gcc -g -std=c11 -Wall -Wextra -fsanitize=address -fsanitize=undefined -fsanitize=leak
+CFLAGS := gcc -g -std=c11 -Wall -Wextra -fsanitize=address -fsanitize=undefined -fsanitize=leak
 #Quick
-CFLAGS := gcc -std=c11 -Ofast
+#CFLAGS := gcc -std=c11 -Ofast
 
 export CFLAGS
 
