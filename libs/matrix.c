@@ -220,12 +220,13 @@ void *Sub_Matrix_To_png_byte(void *vargrp)
 
     double max, value, r_ang;
     max = image->max;
+    int columns = image->columns;
 
     for (int y = origin; y < limit; y++)
     {
-        png_byte *row = png_malloc(png_str, sizeof(uint8_t) * image->columns * PIXEL_SIZE);
+        png_byte *row = png_malloc(png_str, sizeof(uint8_t) * columns * PIXEL_SIZE);
         png_data[y] = row;
-        for (int x = 0; x < image->columns; x++)
+        for (int x = 0; x < columns; x++)
         {
             value = image->data[y][x];
             if (!value)

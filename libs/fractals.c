@@ -6,6 +6,7 @@
 #include "matrix.h"
 #include "secured_alloc.h"
 
+#define SQUARE_SUM(X) (creal(X) * creal(X) + cimag(X) * cimag(X)) 
 #ifndef THREADS
 #define THREADS sysconf(_SC_NPROCESSORS_ONLN)
 #endif
@@ -24,19 +25,24 @@ void *Compute_Julia_Plane_Chunk(void *vargp)
 
     //Init
     double threshold = (1.0 + sqrt(1 + 4 * cabs(constant))) / 2;
+    threshold *= threshold;
     double complex temp;
     double real_step = fabs(creal(origin) - creal(limit)) / result->columns;
     double imag_step = fabs(cimag(origin) - cimag(limit)) / result->rows;
     int k;
 
-    for (int i = 0; i < result->rows; i++)
+    //Optimisations
+    int rows = result->rows, columns = result->columns, max = result->max;
+
+    for (int i = 0; i < rows; i++)
     {
-        for (int j = 0; j < result->columns; j++)
+        for (int j = 0; j < columns; j++)
         {
             k = 0;
             temp = origin + j * real_step + i * imag_step * I;
             //Stop computation for point, if the element is eliminated
-            while (cabs(temp) <= threshold && k < result->max)
+            //Using square sum instead of modulus, save the use of square root.
+            while (SQUARE_SUM(temp) <= threshold && k < max)
             {
                 temp = temp * temp + constant;
                 k++;
@@ -101,15 +107,19 @@ void *Compute_Mandelbrot_Plane_Chunk(void *vargp)
     double real_step = fabs(creal(origin) - creal(limit)) / result->columns;
     double imag_step = fabs(cimag(origin) - cimag(limit)) / result->rows;
 
-    for (int i = 0; i < result->rows; i++)
+    //Optimisations
+    int rows = result->rows, columns = result->columns, max = result->max;
+
+    for (int i = 0; i < rows; i++)
     {
-        for (int j = 0; j < result->columns; j++)
+        for (int j = 0; j < columns; j++)
         {
             k = 0;
             original = origin + j * real_step + i * imag_step * I;
             temp = original;
             //Stop computation for point, if the element is eliminated
-            while (cabs(temp) <= 2 && k < result->max)
+            //Using square sum instead of modulus, save the use of square root.
+            while (SQUARE_SUM(temp) <= 4.0 && k < max)
             {
                 k++;
                 temp = temp * temp + original;
@@ -138,7 +148,7 @@ Matrix *Get_Mandelbrot(int size, int iterations, double complex center, double r
         vars[i] = salloc(sizeof(void *) * 3);
         //If the size can't be divided perfectly for each threads, for the last thread it add the rest.
         subs[i] = Sub_Matrix(result, i * sub_size, sub_size + (i == THREADS - 1 ? size % THREADS : 0));
-        vars[i][0] = (void *)(subs+i);
+        vars[i][0] = (void *)(subs + i);
 
         origin[i] = creal(center) - radius + (cimag(center) - radius + i * chunk_size) * I;
         limit[i] = creal(center) + radius + (cimag(center) + radius - (THREADS - (i + 1)) * chunk_size) * I;
