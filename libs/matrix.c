@@ -329,7 +329,7 @@ int Save_Matrix_To_PNG(Matrix *image, bool smooth, const char *path)
     for (int i = 0; i < THREADS; i++)
     {
         origins[i] = i * step;
-        limits[i] = (i + 1) * step + (i == THREADS - 1 ? image->rows : 0) % THREADS;
+        limits[i] = (i + 1) * step + (i == THREADS - 1 ? image->rows % THREADS : 0);
         //6 = number of arguments
         vars[i] = salloc(sizeof(void *) * 6);
         vars[i][0] = image;

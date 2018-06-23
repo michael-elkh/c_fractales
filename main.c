@@ -5,8 +5,7 @@
 #include "libs/fractals.h"
 
 int main()
-{   
-    
+{    
     double complex constant = -0.7269 + 0.1889 * I;
     Matrix *res = Get_Julia(2000, 16384, constant);
     Save_Matrix_To_PNG(res, false, "Julia.png");
