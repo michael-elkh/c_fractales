@@ -15,7 +15,7 @@ struct Matrix
 	int max;
 };
 
-Matrix *New_Matrix(int rows, int columns);
+Matrix *New_Matrix(int rows, int columns, bool init);
 void Free_Matrix(Matrix **matrix);
 Matrix *Read_PGM(char *Path);
 void Write_PGM(Matrix *Image, char *Path);

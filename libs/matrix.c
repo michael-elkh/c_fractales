@@ -4,11 +4,9 @@
 	<matrix.c>
 */
 #include <stdio.h>
-#include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include <math.h>
-#include <stdbool.h>
+#include <tgmath.h>
 #include <png.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -16,7 +14,6 @@
 #include "matrix.h"
 #include "secured_alloc.h"
 
-#include <time.h>
 //Constants
 #define BUFF_SIZE 50
 #define MAX_CHARS_BY_LINE 70 //PGM file must have less than 70 chars by lines.
@@ -37,7 +34,7 @@ Parameters :
 	columns : Number of columns.
 Return : The address of the newly created matrix.
 */
-Matrix *New_Matrix(int rows, int columns)
+Matrix *New_Matrix(int rows, int columns, bool init)
 {
     Matrix *mat = salloc(sizeof(Matrix));
     mat->max = MAX_VALUE_FOR_PGM;
@@ -48,9 +45,9 @@ Matrix *New_Matrix(int rows, int columns)
     int *content = salloc(sizeof(int) * rows * columns);
 
     //Initialize the matrix
-    for (int i = 0; i < rows * columns; i++)
+    for (int i = 0; i < rows * columns && init; i++)
     {
-        content[i] = 0;
+        content[i] = 16000;
     }
     for (int i = 0; i < rows; i++)
     {
@@ -108,7 +105,7 @@ Matrix *Read_PGM(char *Path)
             columns = atoi(strtok(buffer, " "));
             rows = atoi(strtok(NULL, " "));
             assert(columns > 0 && rows > 0 && "Error invalid shape");
-            result = New_Matrix(rows, columns);
+            result = New_Matrix(rows, columns, true);
             break;
         case 2:
             assert(atoi(buffer) < MAX_VALUE_FOR_PGM && atoi(buffer) > 0 && "Error max value {N} for pgm must be 0 < N < 65'536");
@@ -203,7 +200,6 @@ void Write_PGM(Matrix *Image, char *Path)
 Matrix Sub_Matrix(Matrix *Original, int y, int rows)
 {
     assert(y + rows <= Original->rows && "Submatrix out of original matrix.");
-    //Matrix sub = {Original->data + y, rows, Original->columns, Original->max};
     return (Matrix){Original->data + y, rows, Original->columns, Original->max};
 }
 void *Sub_Matrix_To_png_byte(void *vargrp)
