@@ -55,30 +55,37 @@ void *Compute_Julia_Plane_Chunk(void *vargp)
 }
 Matrix *Get_Julia(int size, int iterations, double complex constant)
 {
+    //Matrix
     Matrix *result = New_Matrix(size, size);
-    Matrix subs[THREADS];
     result->max = iterations;
     int sub_size = size / THREADS;
+    int chunk_start, chunk_size;
 
-    double threshold = (1.0 + sqrt(1 + 4 * cabs(constant))) / 2;
+    //Plane
+    double width = (1.0 + sqrt(1 + 4 * cabs(constant)));
+    double coef = width / (double)result->rows;
+    double complex plane_origin = width/-2.0 * (1 + I);
+    double complex plane_limit = plane_origin + width;
 
-    //Submatrix size for threads
-    double chunk_size = 2.0 * threshold / (double)THREADS;
-    double complex origin[THREADS], limit[THREADS];
     //Parameters for threads
     void **vars[THREADS];
+    double complex origins[THREADS], limits[THREADS];
+    Matrix subs[THREADS];
     pthread_t threads_ids[THREADS];
 
     for (int i = 0; i < THREADS; i++)
     {
         vars[i] = salloc(sizeof(void *) * 4);
-        subs[i] = Sub_Matrix(result, i * sub_size, sub_size + (i == THREADS - 1 ? size % THREADS : 0));
+        chunk_start = i * sub_size;
+        //If the size can't be divided perfectly for each threads, for the last thread it add the rest.
+        chunk_size = i == THREADS - 1 ? size - (THREADS - 1)*sub_size : sub_size;
+        subs[i] = Sub_Matrix(result, chunk_start, chunk_size);
         vars[i][0] = (void *)(subs + i);
 
-        origin[i] = -1 * threshold + (-1 * threshold + i * chunk_size) * I;
-        limit[i] = threshold + (threshold - (THREADS - (i + 1)) * chunk_size) * I;
-        vars[i][1] = (void *)(origin + i);
-        vars[i][2] = (void *)(limit + i);
+        origins[i] = plane_origin + coef*chunk_start*I;
+        limits[i] = plane_limit + coef*(chunk_start+chunk_size)*I;
+        vars[i][1] = (void *)(origins + i);
+        vars[i][2] = (void *)(limits + i);
         vars[i][3] = (void *)&constant;
 
         //Multithreading
@@ -131,29 +138,37 @@ void *Compute_Mandelbrot_Plane_Chunk(void *vargp)
 }
 Matrix *Get_Mandelbrot(int size, int iterations, double complex center, double radius)
 {
+    //Matrix
     Matrix *result = New_Matrix(size, size);
-    Matrix subs[THREADS];
     result->max = iterations;
     int sub_size = size / THREADS;
+    int chunk_start, chunk_size;
 
-    //Subplane size for threads
-    double chunk_size = 2 * radius / THREADS;
-    double complex origin[THREADS], limit[THREADS];
+    //Plane
+    double width = 2.0 * radius;
+    double coef = width / (double)result->rows;
+    double complex plane_origin = creal(center) - radius + (cimag(center) - radius)*I;
+    double complex plane_limit = plane_origin + width;
+
     //Parameters for threads
     void **vars[THREADS];
+    double complex origins[THREADS], limits[THREADS];
+    Matrix subs[THREADS];
     pthread_t threads_ids[THREADS];
-
+    
     for (int i = 0; i < THREADS; i++)
     {
         vars[i] = salloc(sizeof(void *) * 3);
+        chunk_start = i * sub_size;
         //If the size can't be divided perfectly for each threads, for the last thread it add the rest.
-        subs[i] = Sub_Matrix(result, i * sub_size, sub_size + (i == THREADS - 1 ? size % THREADS : 0));
+        chunk_size = i == THREADS - 1 ? size - (THREADS - 1)*sub_size : sub_size;
+        subs[i] = Sub_Matrix(result, chunk_start, chunk_size);
         vars[i][0] = (void *)(subs + i);
 
-        origin[i] = creal(center) - radius + (cimag(center) - radius + i * chunk_size) * I;
-        limit[i] = creal(center) + radius + (cimag(center) + radius - (THREADS - (i + 1)) * chunk_size) * I;
-        vars[i][1] = (void *)(origin + i);
-        vars[i][2] = (void *)(limit + i);
+        origins[i] = plane_origin + coef*chunk_start*I;
+        limits[i] = plane_limit + coef*(chunk_start+chunk_size)*I;
+        vars[i][1] = (void *)(origins + i);
+        vars[i][2] = (void *)(limits + i);
 
         pthread_create(threads_ids + i, NULL, Compute_Mandelbrot_Plane_Chunk, (void *)(vars[i]));
     }
