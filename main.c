@@ -4,8 +4,33 @@
 #include "libs/matrix.h"
 #include "libs/fractals.h"
 
+void Generate_Julia_Set()
+{
+    Matrix *julia;
+    int size = 500;
+    int iterations = 1<<10;
+    double complex constant; 
+    char name[37];
+    for(int i = -5; i < 6; i++)
+    {
+        constant = 0.2*i - (i>0 ? 0.01 : 0);
+        for(int j = 0; j < 5; j++)
+        {
+            constant = 0.2 * (i + j*I) - (i>0 ? 0.01 : 0); 
+            julia = Get_Julia(size, iterations, constant);
+            for(int k = 0; k<2; k++)
+            {
+                sprintf(name, "Julia/%lf + %lf*I - %c.png", creal(constant), cimag(constant), (k ? 'S' : 'O'));
+                Save_Matrix_To_PNG(julia, (bool)k, name);
+            }
+            Free_Matrix(&julia);
+        }
+    }
+}
 int main()
 {    
+    Generate_Julia_Set();
+    /*
     Matrix *res[2];
     int size = 2000;
     int iterations = 1<<10;
@@ -22,6 +47,6 @@ int main()
     Free_Matrix(res);
     Save_Matrix_To_PNG(res[1], false, "Mandelbrot.png");
     Free_Matrix(res + 1);
-
+    */
     return 0;
 }
