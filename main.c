@@ -45,7 +45,8 @@ double Unique_Colors_Percentage(Matrix *Image)
 {
     int nb_colors = 0;
     int colors[Image->max+1];
-    int treshold = (Image->rows*Image->columns)/10;
+    int treshold_u = (Image->rows*Image->columns)/10;
+    
     for(int i = 0; i<Image->rows; i++)
     {
         for(int j = 0; j<Image->columns; j++)
@@ -55,18 +56,49 @@ double Unique_Colors_Percentage(Matrix *Image)
     }
     for(int i = 0; i<(Image->max+1); i++)
     {
-        if (colors[i] && colors[i] < treshold)
+        if (colors[i] > 0 && colors[i] < treshold_u)
         {
             nb_colors++;
         }
     }
     return (double)(nb_colors*100)/(double)(Image->max+1);
 }
+bool Interssing_fractal(Matrix *Image)
+{
+    int nb_colors = 0;
+    int colors[Image->max+1];
+    int treshold_u = (Image->rows*Image->columns)/10;
+    int count = 0;
+
+    for(int i = 0; i<Image->rows; i++)
+    {
+        for(int j = 0; j<Image->columns; j++)
+        {
+            colors[Image->data[i][j]]++;
+            if(Image->data[i][j] == Image->max)
+            {
+                count++;
+            }
+        }
+    }
+
+    for(int i = 0; i<(Image->max+1); i++)
+    {
+        if (colors[i] > 0 && colors[i] < treshold_u)
+        {
+            nb_colors++;
+        }
+    }
+    double Unique_colors = (double)(nb_colors*100)/(double)(Image->max+1);
+    double Max_Percentage = (double)(count*100)/(double)(Image->rows * Image->columns);
+    
+    return Unique_colors > 9.5 && Max_Percentage < 5.0;
+}
 void Get_Selected_Julia_Set()
 {
     Matrix *test, *julia;
     int size = 2048;
-    int test_size = 512;
+    int test_size = 256;
     int iterations = 1<<11;
     double complex constant;
     char name[37];
@@ -76,7 +108,7 @@ void Get_Selected_Julia_Set()
         {
             constant = 0.01 * (i + j*I) - (i>0 ? 0.001 : 0);
             test = Get_Julia(test_size, iterations, constant);
-            if(Get_Percentage(test) < 5.0 && Unique_Colors_Percentage(test) > 18.5)
+            if(Interssing_fractal(test))
             {
                 julia = Get_Julia(size, iterations, constant);
                 for(int k = 0; k<2; k++)
@@ -97,9 +129,9 @@ int main()
     
     /*
     Matrix *res[2];
-    int size = 512;
+    int size = 256;
     int iterations = 1<<11;
-    double complex constant = -1 + 0.28*I;
+    double complex constant = -0.73 + 0.97*I;
     //double complex center = -1.017838801 + -0.2830689082*I;
     //double zoom = 1.5/2132;
 
